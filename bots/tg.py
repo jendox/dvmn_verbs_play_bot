@@ -41,6 +41,7 @@ class TelegramBot:
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.reply))
         try:
             await application.initialize()
+            await application.bot.delete_webhook(drop_pending_updates=True)
             await application.start()
             await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
             await anyio.sleep_forever()

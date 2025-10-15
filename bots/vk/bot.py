@@ -78,8 +78,9 @@ class VKBot:
                 response = await self._get_updates(server)
                 server.ts = response.ts
                 for update in response.get_new_message_updates():
-                    reply = await self._detect_intent(update.user_id, update.text)
-                    await self._send_message(update.user_id, reply)
+                    reply_text, is_fallback = await self._detect_intent(update.user_id, update.text)
+                    if not is_fallback:
+                        await self._send_message(update.user_id, reply_text)
             except LongPollHistoryOutdated as e:
                 server.ts = e.new_ts
                 continue

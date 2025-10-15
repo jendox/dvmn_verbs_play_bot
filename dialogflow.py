@@ -13,7 +13,7 @@ __all__ = (
 
 DF_LOGGER_NAME = "dialogflow"
 
-DetectIntentHandler = Callable[[int, str], Awaitable[str]]
+DetectIntentHandler = Callable[[int, str], Awaitable[tuple[str, bool]]]
 
 
 class DialogFlow:
@@ -38,7 +38,7 @@ class DialogFlow:
         session_id: int,
         text: str,
         language_code: str = "ru",
-    ) -> str:
+    ) -> tuple[str, bool]:
         session = self._session_client.session_path(self._project_id, session_id)
         text_input = dialogflow.TextInput(text=text, language_code=language_code)
         query_input = dialogflow.QueryInput(text=text_input)
@@ -49,7 +49,7 @@ class DialogFlow:
                     query_input=query_input,
                 ),
             )
-            return response.query_result.fulfillment_text
+            return response.query_result.fulfillment_text, response.query_result.intent.is_fallback
         except Exception as e:
             self.logger.error(e, exc_info=True)
             return "Неожиданная ошибка. Повторите попытку позже"

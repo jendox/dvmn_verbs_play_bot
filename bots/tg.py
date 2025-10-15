@@ -29,7 +29,7 @@ class TelegramBot:
         await update.message.reply_text(text="Здравствуйте!")
 
     async def reply(self, update: Update, context) -> None:
-        text = await self._detect_intent(
+        text, is_fallback = await self._detect_intent(
             update.effective_user.id,
             update.effective_message.text,
         )

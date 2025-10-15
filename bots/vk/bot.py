@@ -87,6 +87,8 @@ class VKBot:
             except (LongPollKeyExpired, LongPollInfoLost):
                 server = await self._get_long_poll_server()
                 continue
+            except httpx.ReadTimeout:
+                continue
             except LongPollError:
                 raise
             except Exception as e:

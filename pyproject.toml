@@ -8,8 +8,9 @@ dependencies = [
     "google-api-core>=2.26.0",
     "google-cloud-dialogflow>=2.41.2",
     "grpcio>=1.75.1",
+    "pydantic>=2.12.2",
+    "pydantic-settings>=2.11.0",
     "python-dotenv>=1.1.1",
     "python-telegram-bot>=22.5",
     "ruff>=0.14.0",
-    "vk-api>=11.10.0",
 ]

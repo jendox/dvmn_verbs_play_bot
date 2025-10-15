@@ -27,8 +27,6 @@ async def get_async_http_client(base_url: str, read_timeout: float) -> AsyncGene
                 max_keepalive_connections=MAX_CONNECTIONS // 2,
                 keepalive_expiry=KEEP_ALIVE_EXPIRY,
             ),
-            http2=True,
-            trust_env=True,
         )
         yield client
     finally:

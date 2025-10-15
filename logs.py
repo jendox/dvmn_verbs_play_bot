@@ -1,6 +1,7 @@
 import html
 import logging
 import queue
+import traceback
 from collections.abc import Callable, Coroutine
 from textwrap import dedent
 from typing import Any
@@ -19,35 +20,51 @@ LOGGER_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 LOGS_QUEUE_MAX_SIZE = 200
 QUEUE_SLEEP_TIME = 1.5
 
+TG_HARD_LIMIT = 4096
+BODY_BUDGET = 2800
 
-def format_logger_message_html(record: logging.LogRecord) -> str:
+
+def _truncate_middle(text: str, max_len: int, ellipsis_: str = " … ") -> str:
+    if len(text) <= max_len:
+        return text
+    keep = max_len - len(ellipsis_)
+    head = keep // 2
+    tail = keep - head
+    return text[:head] + ellipsis_ + text[-tail:]
+
+
+def _format_logger_message_html(record: logging.LogRecord) -> str:
     level_icon = {
-        "CRITICAL": "🚨",
-        "ERROR": "❌",
-        "WARNING": "⚠️",
-        "INFO": "ℹ️",
-        "DEBUG": "🐞",
+        "CRITICAL": "🚨", "ERROR": "❌", "WARNING": "⚠️", "INFO": "ℹ️", "DEBUG": "🐞",
     }.get(record.levelname, "❗")
 
     message = html.escape(record.getMessage())
     logger_name = html.escape(record.name)
-    exc_info = ""
 
+    exc_block = ""
     if record.exc_info:
-        import traceback
-        tb = "".join(traceback.format_exception(*record.exc_info))
-        exc_info = f"\n\n<pre>{html.escape(tb[-1500:])}</pre>"
+        parts = traceback.format_exception(*record.exc_info)
+        tb_text = "".join(parts)
+        tb_text = _truncate_middle(tb_text, BODY_BUDGET)
+        tb_html = html.escape(tb_text)
 
-    return dedent(
-        f"""\
+        exc_block = (
+            "\n\n<b>Трассировка (tap, чтобы раскрыть)</b>\n"
+            f"<tg-spoiler><pre>{tb_html}</pre></tg-spoiler>"
+        )
+
+    doc = dedent(f"""\
         {level_icon} <b>Логгер</b>
 
         <b>Уровень:</b> {record.levelname}
         <b>Источник:</b> {logger_name}
 
-        <b>Сообщение:</b> {message}{exc_info}
-        """,
-    )
+        <b>Сообщение:</b> {message}{exc_block}
+    """)
+
+    if len(doc) > TG_HARD_LIMIT:
+        doc = doc[:TG_HARD_LIMIT - 1]
+    return doc
 
 
 class LogsHandler(logging.Handler):
@@ -84,7 +101,7 @@ class TelegramLogger:
         while True:
             try:
                 record = self._queue.get(block=False)
-                message = format_logger_message_html(record)
+                message = _format_logger_message_html(record)
                 await self._send_html_message(message)
             except queue.Empty:
                 await anyio.sleep(QUEUE_SLEEP_TIME)

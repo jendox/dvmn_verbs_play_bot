@@ -71,24 +71,31 @@ class VKBot:
             random_id=random.randint(1, 1000),
         )
 
+    async def _handle_response(self, server: LongPollServer, response: LongPollResponse):
+        server.ts = response.ts
+        for update in response.get_new_message_updates():
+            try:
+                reply_text, is_fallback = await self._detect_intent(update.user_id, update.text)
+                if not is_fallback:
+                    await self._send_message(update.user_id, reply_text)
+            except Exception:
+                self.logger.error("Не удалось обработать сообщение пользователя", exc_info=True)
+
+    async def _recover_server(self, server: LongPollServer, exc: Exception) -> LongPollServer:
+        if isinstance(exc, LongPollHistoryOutdated):
+            server.ts = exc.new_ts
+        elif isinstance(exc, (LongPollKeyExpired, LongPollInfoLost)):
+            server = await self._get_long_poll_server()
+        return server
+
     async def long_polling(self):
         server = await self._get_long_poll_server()
         while True:
             try:
                 response = await self._get_updates(server)
-                server.ts = response.ts
-                for update in response.get_new_message_updates():
-                    reply_text, is_fallback = await self._detect_intent(update.user_id, update.text)
-                    if not is_fallback:
-                        await self._send_message(update.user_id, reply_text)
-            except LongPollHistoryOutdated as e:
-                server.ts = e.new_ts
-                continue
-            except (LongPollKeyExpired, LongPollInfoLost):
-                server = await self._get_long_poll_server()
-                continue
-            except httpx.ReadTimeout:
-                continue
+                await self._handle_response(server, response)
+            except (LongPollHistoryOutdated, LongPollKeyExpired, LongPollInfoLost) as e:
+                server = await self._recover_server(server, e)
             except LongPollError:
                 raise
             except Exception as e:

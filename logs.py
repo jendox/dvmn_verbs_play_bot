@@ -1,17 +1,10 @@
 import html
 import logging
-import queue
 import traceback
-from collections.abc import Callable, Coroutine
 from textwrap import dedent
-from typing import Any
 
-import anyio
-import telegram
-from telegram.constants import ParseMode
+import httpx
 
-from bots.tg import TG_LOGGER_NAME
-from bots.vk import VK_LOGGER_NAME
 from dialogflow import DF_LOGGER_NAME
 
 __all__ = ("setup_logging",)
@@ -49,8 +42,8 @@ def _format_logger_message_html(record: logging.LogRecord) -> str:
         tb_html = html.escape(tb_text)
 
         exc_block = (
-            "\n\n<b>Трассировка (tap, чтобы раскрыть)</b>\n"
-            f"<tg-spoiler><pre>{tb_html}</pre></tg-spoiler>"
+            "\n\n<b>Трассировка</b>\n"
+            f"<pre>{tb_html}</pre>"
         )
 
     doc = dedent(f"""\
@@ -67,54 +60,30 @@ def _format_logger_message_html(record: logging.LogRecord) -> str:
     return doc
 
 
-class LogsHandler(logging.Handler):
-    def __init__(self, logs_queue: queue.Queue[logging.LogRecord]):
+class TelegramSyncHTTPHandler(logging.Handler):
+    def __init__(self, bot_token: str, chat_id: str):
         super().__init__()
-        self._queue = logs_queue
+        self._url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        self._chat_id = chat_id
 
     def emit(self, record: logging.LogRecord) -> None:
+        text = _format_logger_message_html(record)
+        message_data = {
+            "chat_id": self._chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
         try:
-            self._queue.put_nowait(record)
-        except queue.Full:
-            pass
+            httpx.post(self._url, data=message_data, timeout=5.0)
+        except Exception:
+            super().handleError(record)
 
 
-class TelegramLogger:
-    def __init__(self, bot: telegram.Bot, chat_id: int) -> None:
-        self._bot = bot
-        self._chat_id = chat_id
-        self._queue = queue.Queue[logging.LogRecord](LOGS_QUEUE_MAX_SIZE)
-
-    @property
-    def logs_queue(self) -> queue.Queue[logging.LogRecord]:
-        return self._queue
-
-    async def _send_html_message(self, message: str) -> None:
-        await self._bot.send_message(
-            chat_id=self._chat_id,
-            text=message,
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
-        )
-
-    async def logs_polling(self) -> None:
-        while True:
-            try:
-                record = self._queue.get(block=False)
-                message = _format_logger_message_html(record)
-                await self._send_html_message(message)
-            except queue.Empty:
-                await anyio.sleep(QUEUE_SLEEP_TIME)
-
-
-def setup_logging(bot: telegram.Bot, chat_id: int) -> Callable[[], Coroutine[Any, Any, None]]:
-    logger = TelegramLogger(bot, chat_id)
-    log_handler = LogsHandler(logger.logs_queue)
+def setup_logging(bot_token: str, chat_id: str, logger_name: str) -> None:
+    log_handler = TelegramSyncHTTPHandler(bot_token, chat_id)
     log_handler.setLevel(logging.WARNING)
     log_handler.setFormatter(logging.Formatter(LOGGER_FORMAT))
-    logging.getLogger(VK_LOGGER_NAME).addHandler(log_handler)
-    logging.getLogger(TG_LOGGER_NAME).addHandler(log_handler)
+    logging.getLogger(logger_name).addHandler(log_handler)
     logging.getLogger(DF_LOGGER_NAME).addHandler(log_handler)
     logging.getLogger("httpx").setLevel(logging.WARNING)
-
-    return logger.logs_polling

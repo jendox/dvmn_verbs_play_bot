@@ -4,18 +4,18 @@
 
 ## 📦 Установка
 
-### Установите uv (если еще не установлен)
+ Установите uv (если еще не установлен)
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Клонируйте репозиторий
+Клонируйте репозиторий
 ```bash
 git clone https://github.com/jendox/dvmn_verbs_play_bot.git
 cd dvmn_verbs_play_bot
 ```
 
-### Установите зависимости
+Установите зависимости
 ```bash
 uv sync
 ```
@@ -89,11 +89,10 @@ touch .env
 
 Добавьте в него переменные:
 ```env
-TELEGRAM__TOKEN=your-telegram-bot-token
-TELEGRAM__CHAT_ID=your-telegram-chat-id
-VK__TOKEN=your-vk-api-token
-VK__GROUP_ID=you-vk-group-id
-DIALOGFLOW__PROJECT_ID=your-project-id
+TELEGRAM_TOKEN=your-telegram-bot-token
+TELEGRAM_CHAT_ID=your-telegram-chat-id
+VK_TOKEN=your-vk-api-token
+DIALOGFLOW_PROJECT_ID=your-project-id
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
 ```
 
@@ -101,20 +100,50 @@ GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
 
 ### Запуск
 
-Запустите бота командой:
+Отдельно запустите бота VK и бота Telegram:
 
 ```bash
-uv run python3 main.py
+uv run python3 vk_bot.py
+uv run python3 tg_bot.py
 ```
 
 ### Остановка
 
 Для корректного завершения работы нажмите `Ctrl+C` в терминале.
 
-### Для добавления данных в dialogflow из файла `questions.json` запустите команду:
-```bash
-uv run python3 learn_dialogflow.py
+## 🧠 Обучение Dialogflow интентами
+
+Файл с обучающими данными — JSON следующего вида:
+```json
+{
+  "Приветствие": {
+    "questions": [
+      "Привет",
+      "Здравствуйте"
+    ],
+    "answer": "Здравствуйте! Чем могу помочь?"
+  },
+  "Пока": {
+    "questions": [
+      "Пока",
+      "До встречи"
+    ],
+    "answer": "До скорого!"
+  }
+}
 ```
+
+Загрузка интентов:
+```bash
+uv run python3 learn_dialogflow.py # по умолчанию читает questions.json
+uv run python3 learn_dialogflow.py -f data/qa.json
+```
+
+## 📝 Логи в Telegram
+
+Критичные предупреждения и ошибки отправляются в чат TELEGRAM_CHAT_ID.
+
+Формат — HTML; трассировка отправляется моноширинным блоком.
 
 ## 📚 Примеры работающих ботов
 

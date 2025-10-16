@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 
 from dialogflow import create_intent
 
-load_dotenv()
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -29,12 +27,13 @@ def parse_arguments():
 
 
 def main():
+    load_dotenv()
     args = parse_arguments()
     try:
         with open(args.filepath, encoding="utf-8") as file:
             learning_data = json.load(file)
 
-        project_id = os.getenv("DIALOGFLOW_PROJECT_ID")
+        project_id = os.environ["DIALOGFLOW_PROJECT_ID"]
 
         for key in learning_data.keys():
             create_intent(
@@ -48,5 +47,4 @@ def main():
 
 
 if __name__ == "__main__":
-    load_dotenv()
     main()

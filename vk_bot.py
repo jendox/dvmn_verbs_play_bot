@@ -30,27 +30,28 @@ def reply(event: Event, api: VkApiMethod, project_id: str):
 
 
 def main():
-    vk_token = os.getenv("VK_TOKEN")
-    project_id = os.getenv("DIALOGFLOW_PROJECT_ID")
-    tg_token = os.getenv("TELEGRAM_TOKEN")
-    tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
-
-    setup_logging(tg_token, tg_chat_id, VK_LOGGER_NAME)
-
-    vk_session = vk_api.VkApi(token=vk_token)
-    api = vk_session.get_api()
-    long_poll = VkLongPoll(vk_session)
-
-    for event in long_poll.listen():
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            reply(event, api, project_id)
-
-
-if __name__ == "__main__":
+    load_dotenv()
     try:
-        load_dotenv()
-        main()
+        vk_token = os.environ["VK_TOKEN"]
+        project_id = os.environ["DIALOGFLOW_PROJECT_ID"]
+        tg_token = os.environ["TELEGRAM_TOKEN"]
+        tg_chat_id = os.environ["TELEGRAM_CHAT_ID"]
+
+        setup_logging(tg_token, tg_chat_id, VK_LOGGER_NAME)
+        vk_session = vk_api.VkApi(token=vk_token)
+        api = vk_session.get_api()
+        long_poll = VkLongPoll(vk_session)
+
+        for event in long_poll.listen():
+            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                reply(event, api, project_id)
+    except KeyError as e:
+        logger.error(f"Не настроены необходимые переменные окружения: {e}")
     except Exception as exc:
         logger.error(f"Неожиданное исключение: {exc}")
     except KeyboardInterrupt:
         logger.info("Завершено пользователем")
+
+
+if __name__ == "__main__":
+    main()

@@ -34,21 +34,24 @@ def make_reply_handler(project_id: str):
 
 
 def main():
-    bot_token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    project_id = os.getenv("DIALOGFLOW_PROJECT_ID")
-    setup_logging(bot_token, chat_id, TG_LOGGER_NAME)
-    application = Application.builder().token(bot_token).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(make_reply_handler(project_id))
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-if __name__ == "__main__":
+    load_dotenv()
     try:
-        load_dotenv()
-        main()
+        bot_token = os.environ["TELEGRAM_TOKEN"]
+        chat_id = os.environ["TELEGRAM_CHAT_ID"]
+        project_id = os.environ["DIALOGFLOW_PROJECT_ID"]
+
+        setup_logging(bot_token, chat_id, TG_LOGGER_NAME)
+        application = Application.builder().token(bot_token).build()
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(make_reply_handler(project_id))
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except KeyError as e:
+        logger.error(f"Не настроены необходимые переменные окружения: {e}")
     except Exception as exc:
         logger.error(f"Неожиданное исключение: {exc}")
     except KeyboardInterrupt:
         logger.info("Завершено пользователем")
+
+
+if __name__ == "__main__":
+    main()
